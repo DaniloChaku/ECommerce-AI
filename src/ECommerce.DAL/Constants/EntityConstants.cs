@@ -15,4 +15,13 @@ public static class EntityConstants
         public const int NameMaxLength = 50;
         public const int DescriptionMaxLength = 500;
     }
+
+    public static class User
+    {
+        public const int NameMaxLength = 100;
+        public const int EmailMaxLength = 100;
+        public const int PasswordMinLength = 6;
+        public const int PasswordMaxLength = 100;
+        public const string CustomerRole = "Customer";
+    }
 }

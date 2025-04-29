@@ -1,8 +1,11 @@
 using ECommerce.API.Extensions;
 using ECommerce.BLL.ServiceContracts;
+using ECommerce.DAL.Constants;
 using ECommerce.DAL.Data;
 using ECommerce.DAL.Data.Repositories;
 using ECommerce.DAL.Data.RepositoryContracts;
+using ECommerce.DAL.Entities;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +21,17 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("ecommercedb");
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequiredLength = EntityConstants.User.PasswordMinLength;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
 var app = builder.Build();
 
