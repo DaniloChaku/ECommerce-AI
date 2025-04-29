@@ -1,10 +1,12 @@
 using ECommerce.API.Extensions;
 using ECommerce.BLL.ServiceContracts;
+using ECommerce.BLL.Services;
 using ECommerce.DAL.Constants;
 using ECommerce.DAL.Data;
 using ECommerce.DAL.Data.Repositories;
 using ECommerce.DAL.Data.RepositoryContracts;
 using ECommerce.DAL.Entities;
+using ECommerce.DAL.Seeders;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,7 +37,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 var app = builder.Build();
 
-app.MigrateDatabase<ApplicationDbContext>();
+app.MigrateDatabase<ApplicationDbContext>(async (context, services) =>
+{
+    await RoleSeeder.SeedRolesAsync(services);
+});
 
 app.MapDefaultEndpoints();
 
