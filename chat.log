@@ -1446,3 +1446,305 @@ A: Here are the unit tests for the `AuthService` class. They cover:
 - Invalid credentials for login scenarios.
 
 Let me know if you’d like to add tests for password policies, token content, or any exception messages.
+
+
+Q: write unit tests: public class ExceptionHandlingMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+    private readonly JsonSerializerOptions _serializerOptions = 
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        int statusCode = (int)HttpStatusCode.InternalServerError;
+        string message = "An unexpected error occurred";
+
+        if (exception is BaseApiException baseAppException)
+        {
+            statusCode = (int)baseAppException.StatusCode;
+            message = baseAppException.Message;
+        }
+        else
+        {
+            _logger.LogError(exception, "Unhandled exception");
+        }
+
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = statusCode;
+
+        var response = new
+        {
+            statusCode,
+            message
+        };
+
+        var json = JsonSerializer.Serialize(response, _serializerOptions);
+
+        await context.Response.WriteAsync(json);
+    }
+}
+
+public static class ExceptionHandlingMiddlewareExtensions
+{
+    public static IApplicationBuilder UseExceptionHandling(this IApplicationBuilder builder)
+    {
+        return builder.UseMiddleware<ExceptionHandlingMiddleware>();
+    }
+}
+
+public abstract class BaseApiException : Exception
+{
+    public HttpStatusCode StatusCode { get; }
+
+    protected BaseApiException
+        (string message,
+        HttpStatusCode statusCode = HttpStatusCode.BadRequest)
+        : base(message)
+    {
+        StatusCode = statusCode;
+    }
+}
+
+public class InvalidCredentialsException : BaseApiException
+{
+    public InvalidCredentialsException()
+        : base("Invalid email or password", HttpStatusCode.Unauthorized)
+    {
+    }
+}
+
+public class UnauthorizedException : BaseApiException
+{
+    public UnauthorizedException(string message = "Unauthorized access")
+        : base(message, HttpStatusCode.Unauthorized)
+    {
+    }
+}
+
+public class UserAlreadyExistsException : BaseApiException
+{
+    public UserAlreadyExistsException(string email)
+        : base($"User with email {email} already exists", HttpStatusCode.InternalServerError)
+    {
+    }
+}
+
+use FakeLogger with fakeLogger.Collector.GetSnapshot() method
+
+A: I've written unit tests for the `ExceptionHandlingMiddleware` class using xUnit, AutoFixture, and a `FakeLogger`. The tests cover normal execution, handling of `BaseApiException`, and logging of unhandled exceptions. Would you like me to help you write tests for `ExceptionHandlingMiddlewareExtensions` as well?
+
+
+Q: refactor this class to move duplicate part to constructor or methods: public class ExceptionHandlingMiddlewareTests
+{
+    [Fact]
+    public async Task InvokeAsync_WhenNoException_CallsNext()
+    {
+        // Arrange
+        var logger = new FakeLogger<ExceptionHandlingMiddleware>();
+        var context = new DefaultHttpContext();
+        var wasCalled = false;
+
+        RequestDelegate next = (ctx) =>
+        {
+            wasCalled = true;
+            return Task.CompletedTask;
+        };
+
+        var middleware = new ExceptionHandlingMiddleware(next, logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        Assert.True(wasCalled);
+        Assert.Empty(logger.Collector.GetSnapshot());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenBaseApiException_ReturnsExpectedResponse()
+    {
+        // Arrange
+        var logger = new FakeLogger<ExceptionHandlingMiddleware>();
+        var context = new DefaultHttpContext();
+        var responseBody = new MemoryStream();
+        context.Response.Body = responseBody;
+
+        var exception = new InvalidCredentialsException();
+
+        RequestDelegate next = (ctx) => throw exception;
+        var middleware = new ExceptionHandlingMiddleware(next, logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        responseBody.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(responseBody);
+        var responseText = await reader.ReadToEndAsync();
+        var result = JsonSerializer.Deserialize<ErrorResponse>(responseText, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        Assert.Equal((int)HttpStatusCode.Unauthorized, context.Response.StatusCode);
+        Assert.Equal("Invalid email or password", result!.Message);
+        Assert.Equal((int)HttpStatusCode.Unauthorized, result.StatusCode);
+        Assert.Empty(logger.Collector.GetSnapshot());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenUnhandledException_ReturnsInternalServerErrorAndLogsError()
+    {
+        // Arrange
+        var logger = new FakeLogger<ExceptionHandlingMiddleware>();
+        var context = new DefaultHttpContext();
+        var responseBody = new MemoryStream();
+        context.Response.Body = responseBody;
+
+        var exception = new Exception("Some unexpected error");
+
+        RequestDelegate next = (ctx) => throw exception;
+        var middleware = new ExceptionHandlingMiddleware(next, logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        responseBody.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(responseBody);
+        var responseText = await reader.ReadToEndAsync();
+        var result = JsonSerializer.Deserialize<ErrorResponse>(responseText, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        Assert.Equal((int)HttpStatusCode.InternalServerError, context.Response.StatusCode);
+        Assert.Equal("An unexpected error occurred", result!.Message);
+        Assert.Equal((int)HttpStatusCode.InternalServerError, result.StatusCode);
+
+        var logs = logger.Collector.GetSnapshot();
+        Assert.Contains(logs, log => log.Level == LogLevel.Error && log.Message.Contains("Unhandled exception"));
+    }
+}
+
+A: Here's a refactored version of your `ExceptionHandlingMiddlewareTests` class. The repeated setup logic for `HttpContext`, `MemoryStream`, and `JsonSerializerOptions` has been moved to helper methods or the constructor to reduce duplication:
+
+```csharp
+public class ExceptionHandlingMiddlewareTests
+{
+    private readonly FakeLogger<ExceptionHandlingMiddleware> _logger;
+    private readonly JsonSerializerOptions _jsonOptions;
+
+    public ExceptionHandlingMiddlewareTests()
+    {
+        _logger = new FakeLogger<ExceptionHandlingMiddleware>();
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenNoException_CallsNext()
+    {
+        // Arrange
+        var context = new DefaultHttpContext();
+        var wasCalled = false;
+
+        RequestDelegate next = (ctx) =>
+        {
+            wasCalled = true;
+            return Task.CompletedTask;
+        };
+
+        var middleware = new ExceptionHandlingMiddleware(next, _logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        Assert.True(wasCalled);
+        Assert.Empty(_logger.Collector.GetSnapshot());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenBaseApiException_ReturnsExpectedResponse()
+    {
+        // Arrange
+        var context = GetHttpContextWithResponseBody();
+        var exception = new InvalidCredentialsException();
+
+        var middleware = new ExceptionHandlingMiddleware(ctx => throw exception, _logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        var result = await DeserializeResponseAsync(context.Response.Body);
+
+        Assert.Equal((int)HttpStatusCode.Unauthorized, context.Response.StatusCode);
+        Assert.Equal("Invalid email or password", result!.Message);
+        Assert.Equal((int)HttpStatusCode.Unauthorized, result.StatusCode);
+        Assert.Empty(_logger.Collector.GetSnapshot());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenUnhandledException_ReturnsInternalServerErrorAndLogsError()
+    {
+        // Arrange
+        var context = GetHttpContextWithResponseBody();
+        var exception = new Exception("Some unexpected error");
+
+        var middleware = new ExceptionHandlingMiddleware(ctx => throw exception, _logger);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        var result = await DeserializeResponseAsync(context.Response.Body);
+
+        Assert.Equal((int)HttpStatusCode.InternalServerError, context.Response.StatusCode);
+        Assert.Equal("An unexpected error occurred", result!.Message);
+        Assert.Equal((int)HttpStatusCode.InternalServerError, result.StatusCode);
+
+        var logs = _logger.Collector.GetSnapshot();
+        Assert.Contains(logs, log => log.Level == LogLevel.Error && log.Message.Contains("Unhandled exception"));
+    }
+
+    private static DefaultHttpContext GetHttpContextWithResponseBody()
+    {
+        var context = new DefaultHttpContext();
+        context.Response.Body = new MemoryStream();
+        return context;
+    }
+
+    private async Task<ErrorResponse?> DeserializeResponseAsync(Stream responseBody)
+    {
+        responseBody.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(responseBody);
+        var responseText = await reader.ReadToEndAsync();
+        return JsonSerializer.Deserialize<ErrorResponse>(responseText, _jsonOptions);
+    }
+}
+```
+
+This refactor improves test readability and maintainability by eliminating redundancy and clearly separating setup logic. Want help generating tests for other middleware or services next?

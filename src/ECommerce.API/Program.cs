@@ -1,4 +1,5 @@
 using ECommerce.API.Extensions;
+using ECommerce.API.Middleware;
 using ECommerce.BLL.Options;
 using ECommerce.BLL.ServiceContracts;
 using ECommerce.BLL.Services;
@@ -43,6 +44,8 @@ builder.Services.AddOptions<JwtOptions>()
 
 var app = builder.Build();
 
+app.UseExceptionHandling();
+
 app.MigrateDatabase<ApplicationDbContext>(async (context, services) =>
 {
     await RoleSeeder.SeedRolesAsync(services);
@@ -63,4 +66,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+#pragma warning disable S6966 // Awaitable method should be used
 app.Run();
+#pragma warning restore S6966 // Awaitable method should be used
