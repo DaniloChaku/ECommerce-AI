@@ -1,9 +1,9 @@
 ﻿using AutoFixture;
 using ECommerce.BLL.Dtos;
-using ECommerce.BLL.Exceptions;
 using ECommerce.BLL.ServiceContracts;
 using ECommerce.BLL.Services;
 using ECommerce.DAL.Entities;
+using ECommerce.DAL.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 

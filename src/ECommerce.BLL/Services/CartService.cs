@@ -1,5 +1,5 @@
 ﻿using ECommerce.BLL.Dtos;
-using ECommerce.BLL.Exceptions;
+using ECommerce.DAL.Exceptions;
 using ECommerce.BLL.ServiceContracts;
 using ECommerce.DAL.Data.RepositoryContracts;
 using ECommerce.DAL.Entities;

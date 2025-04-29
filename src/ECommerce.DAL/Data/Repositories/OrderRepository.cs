@@ -1,4 +1,4 @@
-﻿using ECommerce.BLL.Exceptions;
+﻿using ECommerce.DAL.Exceptions;
 using ECommerce.DAL.Data.RepositoryContracts;
 using ECommerce.DAL.Entities;
 using ECommerce.DAL.Enums;

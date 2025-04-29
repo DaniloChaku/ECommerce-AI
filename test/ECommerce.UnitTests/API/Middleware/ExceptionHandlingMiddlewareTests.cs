@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using ECommerce.API.Middleware;
-using ECommerce.BLL.Exceptions;
+using ECommerce.DAL.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Logging;

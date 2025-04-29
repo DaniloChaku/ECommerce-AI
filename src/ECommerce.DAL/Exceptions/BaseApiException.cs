@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace ECommerce.BLL.Exceptions;
+namespace ECommerce.DAL.Exceptions;
 
 public abstract class BaseApiException : Exception
 {

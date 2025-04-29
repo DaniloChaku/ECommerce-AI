@@ -1,4 +1,4 @@
-﻿using ECommerce.BLL.Exceptions;
+﻿using ECommerce.DAL.Exceptions;
 using System.Net;
 using System.Text.Json;
 

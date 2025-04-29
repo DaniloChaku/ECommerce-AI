@@ -1,4 +1,4 @@
-﻿namespace ECommerce.BLL.Exceptions;
+﻿namespace ECommerce.DAL.Exceptions;
 
 public class InsufficientStockException : BaseApiException
 {

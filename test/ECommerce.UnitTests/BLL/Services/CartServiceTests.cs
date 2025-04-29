@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ECommerce.BLL.Dtos;
-using ECommerce.BLL.Exceptions;
 using ECommerce.BLL.Services;
 using ECommerce.DAL.Data.RepositoryContracts;
 using ECommerce.DAL.Entities;
+using ECommerce.DAL.Exceptions;
 using Moq;
 
 namespace ECommerce.UnitTests.BLL.Services;
