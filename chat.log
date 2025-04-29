@@ -1748,3 +1748,148 @@ public class ExceptionHandlingMiddlewareTests
 ```
 
 This refactor improves test readability and maintainability by eliminating redundancy and clearly separating setup logic. Want help generating tests for other middleware or services next?
+
+
+Q: write unit tests with xUnit and moq: public class AuthController : BaseApiController 
+{
+    private readonly IAuthService _authService;
+
+    public AuthController(IAuthService authService)
+    {
+        _authService = authService;
+    }
+
+    [HttpPost("register")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
+    {
+        var response = await _authService.RegisterAsync(request);
+        return Ok(response);
+    }
+
+    [HttpPost("login")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
+    {
+        var response = await _authService.LoginAsync(request);
+        return Ok(response);
+    }
+}
+
+public class LoginRequest
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Password { get; set; } = string.Empty;
+}
+
+public class RegisterRequest
+{
+    [Required]
+    [StringLength(EntityConstants.User.NameMaxLength)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    [StringLength(EntityConstants.User.EmailMaxLength)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(EntityConstants.User.PasswordMaxLength, 
+        MinimumLength = EntityConstants.User.PasswordMinLength)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required]
+    [Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+A: Here's a complete unit test class for the `AuthController`, using **xUnit**, **Moq**, and testing both the `Register` and `Login` endpoints:
+
+```csharp
+using Xunit;
+using Moq;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
+
+public class AuthControllerTests
+{
+    private readonly Mock<IAuthService> _authServiceMock;
+    private readonly AuthController _controller;
+
+    public AuthControllerTests()
+    {
+        _authServiceMock = new Mock<IAuthService>();
+        _controller = new AuthController(_authServiceMock.Object);
+    }
+
+    [Fact]
+    public async Task Register_ValidRequest_ReturnsOkResultWithToken()
+    {
+        // Arrange
+        var registerRequest = new RegisterRequest
+        {
+            Name = "Test User",
+            Email = "test@example.com",
+            Password = "P@ssword123",
+            ConfirmPassword = "P@ssword123"
+        };
+
+        var expectedResponse = new AuthResponse { Token = "test_token" };
+
+        _authServiceMock
+            .Setup(s => s.RegisterAsync(registerRequest))
+            .ReturnsAsync(expectedResponse);
+
+        // Act
+        var result = await _controller.Register(registerRequest);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var authResponse = Assert.IsType<AuthResponse>(okResult.Value);
+        Assert.Equal("test_token", authResponse.Token);
+    }
+
+    [Fact]
+    public async Task Login_ValidRequest_ReturnsOkResultWithToken()
+    {
+        // Arrange
+        var loginRequest = new LoginRequest
+        {
+            Email = "test@example.com",
+            Password = "P@ssword123"
+        };
+
+        var expectedResponse = new AuthResponse { Token = "login_token" };
+
+        _authServiceMock
+            .Setup(s => s.LoginAsync(loginRequest))
+            .ReturnsAsync(expectedResponse);
+
+        // Act
+        var result = await _controller.Login(loginRequest);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var authResponse = Assert.IsType<AuthResponse>(okResult.Value);
+        Assert.Equal("login_token", authResponse.Token);
+    }
+}
+```
+
+### Key Aspects:
+- Uses **Moq** to mock `IAuthService`.
+- Verifies that the controller returns `200 OK` and the expected token in the response.
+- Doesn't test model validation attributes (like `[Required]`, `[EmailAddress]`) — these are typically tested via integration or functional tests, not unit tests.
+
+Would you like tests for failure scenarios too (e.g., service throws `UserAlreadyExistsException` or `InvalidCredentialsException`)?
+
+
+Q: create shopping cart repository, service and controller. It should only allow registered users in role Customer: public static class EntityConstants {     public static class User     {         public const int NameMaxLength = 100;         public const int EmailMaxLength = 100;         public const int PasswordMinLength = 6;         public const int PasswordMaxLength = 100;         public const string CustomerRole = "Customer";     } }  use constants in ef core configuration and validation attribtue
+
+A: I'll create the shopping cart repository, service, and controller with the specified requirements for registered users in the "Customer" role.
