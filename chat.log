@@ -1893,3 +1893,8 @@ Would you like tests for failure scenarios too (e.g., service throws `UserAlread
 Q: create shopping cart repository, service and controller. It should only allow registered users in role Customer: public static class EntityConstants {     public static class User     {         public const int NameMaxLength = 100;         public const int EmailMaxLength = 100;         public const int PasswordMinLength = 6;         public const int PasswordMaxLength = 100;         public const string CustomerRole = "Customer";     } }  use constants in ef core configuration and validation attribtue
 
 A: I'll create the shopping cart repository, service, and controller with the specified requirements for registered users in the "Customer" role.
+
+
+Q: refactor CartService to follow solid and clean code please and remove comments
+
+A: 
