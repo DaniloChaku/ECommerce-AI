@@ -1998,7 +1998,7 @@ I've completed the implementation of the CartController and its corresponding un
 The controller now properly handles all the operations from the CartService, with consistent error handling that leverages the BaseApiException hierarchy to return appropriate HTTP status codes. The unit tests verify that the controller responds correctly in all scenarios.
 
 
-Q: create orderrepository, service and controller. It should only allow registered users in role Customer: public static class EntityConstants {     public static class User     {         public const int NameMaxLength = 100;         public const int EmailMaxLength = 100;         public const int PasswordMinLength = 6;         public const int PasswordMaxLength = 100;         public const string CustomerRole = "Customer";     } }  use constants in ef core configuration and validation attribtue. don't rewrite ApplicationDbContext, just write a configuration class. Don't forget to deccrease the quantity of products after the order is made
+Q: create orderrepository, service and controller. It should only allow registered users in role Customer: Don't forget to deccrease the quantity of products after the order is made. Also, retrieve current products' prices. start writing the repository at once, the dbcontext is already configured for orders, skip this part. follow clean code and solid
 cart: public class Cart
 {
     public int Id { get; set; }
@@ -2025,81 +2025,150 @@ public interface ICartRepository
     Task<Cart> CreateCartAsync(string userId);
 }
 
-A: I'll create the order functionality for registered customers based on the cart system you provided. Here's the implementation:
+public class Order
+{
+    public int Id { get; set; }
 
-I've created a comprehensive order management system for your e-commerce application that:
+    [Required]
+    [MaxLength(EntityConstants.User.NameMaxLength)]
+    public string UserId { get; set; } = string.Empty;
 
-1. Works with your existing cart system
-2. Enforces role-based security for customers
-3. Properly decreases product quantities when orders are placed
+    public DateTime OrderDate { get; set; } = DateTime.UtcNow;
 
-Here's a summary of the implementation:
+    public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
-## Domain Models
+    public decimal TotalAmount { get; set; }
 
-- **Order**: Stores order information with status tracking and payment details
-- **OrderItem**: Contains product, quantity, and pricing details for each item in an order
-- **OrderStatus**: An enum tracking the order lifecycle (Pending, Processing, Shipped, Delivered, Cancelled)
+    public ICollection<OrderItem> Items { get; set; } = [];
 
-## Entity Configuration
+    [MaxLength(EntityConstants.Order.AddressMaxLength)]
+    public string? ShippingAddress { get; set; }
 
-- Applied proper constraints using your `EntityConstants` class
-- Set up all necessary relationships between entities
-- Created indexes for performance optimization
-- Added transaction support to ensure data consistency
+    public string? PaymentIntentId { get; set; }
 
-## Repository Layer
+    public DateTime? PaidAt { get; set; }
+}
 
-The `OrderRepository` implements:
-- Retrieving orders by ID with proper user authorization
-- Getting order history with pagination
-- Creating new orders with product inventory management
-- Updating order status
+public class OrderItem
+{
+    public int Id { get; set; }
 
-Key features:
-- Uses transactions to ensure atomicity between order creation and stock updates
-- Validates stock availability before processing orders
-- Updates product quantities after successful order creation
+    public int OrderId { get; set; }
+    public Order Order { get; set; } = null!;
 
-## Service Layer
+    public int ProductId { get; set; }
+    public Product Product { get; set; } = null!;
 
-The `OrderService` implements:
-- Converting cart items to orders
-- Calculating order totals
-- Providing order history
-- Order cancellation logic
-- Manual DTOs mapping (as requested)
+    public int Quantity { get; set; }
 
-## Controller Layer
+    public decimal UnitPrice { get; set; }
+}
 
-The `OrdersController` enforces security with:
-- `[Authorize(Roles = EntityConstants.User.CustomerRole)]` attribute
-- Claims-based user identification
-- Proper validation of user ownership of orders
+public enum OrderStatus
+{
+    Pending,
+    Processing,
+    Shipped,
+    Delivered,
+    Cancelled
+}
+use exceptions: public abstract class BaseApiException : Exception
+{
+    public HttpStatusCode StatusCode { get; }
 
-API endpoints include:
-- `GET /api/orders` - View order history with pagination
-- `GET /api/orders/{id}` - Get specific order details
-- `POST /api/orders` - Create a new order from cart
-- `PUT /api/orders/{id}/cancel` - Cancel pending orders
+    protected BaseApiException
+        (string message,
+        HttpStatusCode statusCode = HttpStatusCode.BadRequest)
+        : base(message)
+    {
+        StatusCode = statusCode;
+    }
+}
 
-## Key Security Features
+public class InsufficientStockException : BaseApiException
+{
+    public InsufficientStockException(int productId, int availableQuantity, int requestedQuantity)
+        : base(
+            $"Not enough items in stock for product {productId}. Available: {availableQuantity}, Requested: {requestedQuantity}")
+    {
+    }
+}
 
-1. Role-based authorization ensuring only authenticated customers can place orders
-2. User ID validation to prevent users from accessing others' orders
-3. Input validation using data annotations and model validation
+public class ProductNotFoundException : BaseApiException
+{
+    public ProductNotFoundException(int productId)
+        : base($"Product with ID {productId} not found.", HttpStatusCode.NotFound)
+    {
+    }
+}
 
-## Workflow Highlights
+A: I'll create a complete implementation for the order functionality with proper user authorization. Let's start with the repository:
 
-1. When creating an order:
-   - The system validates the user has items in their cart
-   - It calculates the total based on current prices
-   - A transaction ensures both order creation and inventory updates succeed or fail together
-   - The cart is cleared after successful order creation
+I've created a complete order processing system for your e-commerce application following SOLID principles and clean code practices. Let me walk you through the components:
 
-2. For order cancellation:
-   - The system validates the order belongs to the current user
-   - It checks if the order is still in a cancellable state (Pending)
-   - It updates the order status to Cancelled
+## Order Repository Layer
 
-The implementation follows best practices for ASP.NET Core, including proper dependency injection, repository pattern, and separation of concerns.
+The order repository handles data access operations with these key features:
+- **Transaction Management**: Uses transactions to ensure order creation and stock updates are atomic
+- **Stock Validation**: Verifies sufficient stock before processing orders
+- **Stock Management**: Decreases product quantities when orders are placed and restores them if orders are cancelled
+- **Query Operations**: Provides methods to retrieve orders by ID and user ID
+
+## Order Service Layer
+
+The service layer implements business logic with these key aspects:
+- **Security**: Ensures users can only access their own orders
+- **Cart Integration**: Converts cart items to order items with current product pricing
+- **Order Status Transitions**: Implements a state machine for valid order status transitions
+- **Error Handling**: Provides meaningful exceptions for various error conditions
+
+## API Controller Layer
+
+The controller handles HTTP requests with these key features:
+- **Authorization**: Restricts access to the "Customer" role only
+- **Input Validation**: Validates incoming DTOs
+- **Exception Handling**: Uses middleware for consistent error responses
+- **Response Types**: Documents responses with Swagger attributes
+- **Security**: Extracts user identity from JWT claims
+
+## Key Features
+
+1. **Secure Order Processing**
+   - Only authenticated users with the "Customer" role can create orders
+   - Users can only access their own orders
+   - JWTs used for authentication
+
+2. **Accurate Pricing**
+   - Captures current product prices at order time
+   - Calculates order totals based on these prices
+
+3. **Inventory Management**
+   - Validates product availability before order creation
+   - Automatically decreases stock quantities after order placement
+   - Restores quantities if an order is cancelled
+
+4. **Robust Error Handling**
+   - Custom exceptions for different error scenarios
+   - Global exception middleware for consistent error responses
+
+5. **State Management**
+   - Enforces valid status transitions for orders
+   - Implements business rules for status changes
+
+## Sample Usage Flow
+
+1. **Authentication**: User logs in and receives a JWT token
+2. **Checkout**: Authenticated user calls POST `/api/orders` to convert their cart to an order
+3. **Order History**: User retrieves order history with GET `/api/orders`
+4. **Order Details**: User gets order details with GET `/api/orders/{id}`
+5. **Status Updates**: User can cancel their order with PATCH `/api/orders/{id}/status`
+
+## Implementation Notes
+
+- **Clean Architecture**: Separation of concerns with repository, service, and controller layers
+- **SOLID Principles**: Single responsibility, interface segregation, dependency inversion applied
+- **Transactional Safety**: Database transactions ensure data consistency
+- **Security First**: Role-based authorization and user validation throughout
+- **Domain-Driven Design**: Clean domain models with proper relationships
+
+This implementation provides a solid foundation for your e-commerce order processing system while following best practices for clean code and architecture.
