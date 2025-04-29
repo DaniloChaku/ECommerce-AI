@@ -63,7 +63,10 @@ public class ProductServiceTests
     public async Task SearchProductsAsync_ValidSearchParams_ReturnsMappedPagedResult()
     {
         // Arrange
-        var searchParams = _fixture.Create<ProductSearchParams>();
+        var searchParams = new ProductSearchParams()
+        {
+            SearchTerm = "product1"
+        };
         var products = _fixture.Build<Product>()
                                .With(p => p.Category, _fixture.Create<Category>())
                                .CreateMany(3)
