@@ -20,7 +20,7 @@ public class Order
 
     public ICollection<OrderItem> Items { get; set; } = [];
 
-    [MaxLength(500)]
+    [MaxLength(EntityConstants.Order.AddressMaxLength)]
     public string? ShippingAddress { get; set; }
 
     public string? PaymentIntentId { get; set; }
