@@ -12,6 +12,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
+    public DbSet<Cart> Carts { get; set; } = null!;
+    public DbSet<CartItem> CartItems { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -20,6 +22,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.ApplyConfiguration(new ProductConfiguration());
         builder.ApplyConfiguration(new CategoryConfiguration());
         builder.ApplyConfiguration(new ApplicationUserConfiguration());
+        builder.ApplyConfiguration(new CartConfiguration());
+        builder.ApplyConfiguration(new CartItemConfiguration());
 
         SeedData(builder);
     }

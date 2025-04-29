@@ -24,4 +24,9 @@ public static class EntityConstants
         public const int PasswordMaxLength = 100;
         public const string CustomerRole = "Customer";
     }
+
+    public static class Cart
+    {
+        public const int MaxCartItems = 20;
+    }
 }
