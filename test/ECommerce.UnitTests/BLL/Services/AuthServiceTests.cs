@@ -13,7 +13,6 @@ public class AuthServiceTests
 {
     private readonly IFixture _fixture;
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
-    private readonly Mock<SignInManager<ApplicationUser>> _signInManagerMock;
     private readonly Mock<IJwtService> _jwtServiceMock;
     private readonly AuthService _sut;
 
@@ -26,14 +25,11 @@ public class AuthServiceTests
             store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
         var contextAccessor = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
         var userPrincipalFactory = new Mock<IUserClaimsPrincipalFactory<ApplicationUser>>();
-        _signInManagerMock = new Mock<SignInManager<ApplicationUser>>(
-            _userManagerMock.Object, contextAccessor.Object, userPrincipalFactory.Object, null!, null!, null!, null!);
 
         _jwtServiceMock = new Mock<IJwtService>();
 
         _sut = new AuthService(
             _userManagerMock.Object,
-            _signInManagerMock.Object,
             _jwtServiceMock.Object);
     }
 
@@ -104,8 +100,8 @@ public class AuthServiceTests
         var user = _fixture.Create<ApplicationUser>();
 
         _userManagerMock.Setup(m => m.FindByEmailAsync(request.Email)).ReturnsAsync(user);
-        _signInManagerMock.Setup(m => m.CheckPasswordSignInAsync(user, request.Password, false))
-            .ReturnsAsync(SignInResult.Failed);
+        _userManagerMock.Setup(m => m.CheckPasswordAsync(user, request.Password))
+            .ReturnsAsync(false);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidCredentialsException>(() => _sut.LoginAsync(request));
@@ -120,8 +116,8 @@ public class AuthServiceTests
         var token = _fixture.Create<string>();
 
         _userManagerMock.Setup(m => m.FindByEmailAsync(request.Email)).ReturnsAsync(user);
-        _signInManagerMock.Setup(m => m.CheckPasswordSignInAsync(user, request.Password, false))
-            .ReturnsAsync(SignInResult.Success);
+        _userManagerMock.Setup(m => m.CheckPasswordAsync(user, request.Password))
+            .ReturnsAsync(true);
         _userManagerMock.Setup(m => m.GetRolesAsync(user)).ReturnsAsync(["Admin"]);
         _jwtServiceMock.Setup(j => j.GenerateToken(user, It.IsAny<IList<string>>())).Returns(token);
 

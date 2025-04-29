@@ -10,16 +10,13 @@ namespace ECommerce.BLL.Services;
 public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IJwtService _jwtService;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager,
         IJwtService jwtService)
     {
         _userManager = userManager;
-        _signInManager = signInManager;
         _jwtService = jwtService;
     }
 
@@ -82,8 +79,8 @@ public class AuthService : IAuthService
             throw new InvalidCredentialsException();
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
-        if (!result.Succeeded)
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!isPasswordValid)
         {
             throw new InvalidCredentialsException();
         }
