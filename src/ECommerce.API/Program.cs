@@ -1,3 +1,4 @@
+using ECommerce.API.Extensions;
 using ECommerce.DAL.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,8 @@ builder.Services.AddSwaggerGen();
 builder.AddNpgsqlDbContext<ApplicationDbContext>("ecommercedb");
 
 var app = builder.Build();
+
+app.MigrateDatabase<ApplicationDbContext>();
 
 app.MapDefaultEndpoints();
 
