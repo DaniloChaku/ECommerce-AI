@@ -1,4 +1,5 @@
 using ECommerce.API.Extensions;
+using ECommerce.BLL.Options;
 using ECommerce.BLL.ServiceContracts;
 using ECommerce.BLL.Services;
 using ECommerce.DAL.Constants;
@@ -34,6 +35,11 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
+
+builder.Services.AddOptions<JwtOptions>()
+    .BindConfiguration(JwtOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 var app = builder.Build();
 

@@ -1,9 +1,10 @@
 ﻿using ECommerce.BLL.Dtos;
+using ECommerce.BLL.ServiceContracts;
 using ECommerce.DAL.Common;
 using ECommerce.DAL.Data.RepositoryContracts;
 using ECommerce.DAL.Entities;
 
-namespace ECommerce.BLL.ServiceContracts;
+namespace ECommerce.BLL.Services;
 
 public class ProductService : IProductService
 {
