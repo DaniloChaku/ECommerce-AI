@@ -792,3 +792,199 @@ It's a global and elegant fix if you use AutoFixture heavily in the suite.
 Use `.Without()` for precision, or `.OmitOnRecursionBehavior` for safety and convenience.
 
 Would you like me to regenerate one of the tests using this fix so you can see it in action?
+
+
+Q: write unit tests please: public class ProductsController : BaseApiController
+{
+    private readonly IProductService _productService;
+
+    public ProductsController(IProductService productService)
+    {
+        _productService = productService;
+    }
+
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetProducts([FromQuery] ProductSearchParams searchParams)
+    {
+        var products = await _productService.SearchProductsAsync(searchParams);
+        return Ok(products);
+    }
+
+    [HttpGet("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductDto>> GetProduct(int id)
+    {
+        var product = await _productService.GetProductByIdAsync(id);
+
+        if (product == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(product);
+    }
+
+    [HttpGet("categories")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
+    {
+        var categories = await _productService.GetAllCategoriesAsync();
+        return Ok(categories);
+    }
+
+    [HttpGet("categories/{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryDto>> GetCategory(int id)
+    {
+        var category = await _productService.GetCategoryByIdAsync(id);
+
+        if (category == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(category);
+    }
+}
+
+A: Here's a complete unit test class for the `ProductsController` using **xUnit**, **Moq**, and **AutoFixture** (configured safely to avoid circular references). These tests cover all action methods, using `ActionResult<T>` assertions and verifying response codes and data mapping.
+
+---
+
+### ✅ `ProductsControllerTests.cs`
+
+```csharp
+using Xunit;
+using Moq;
+using AutoFixture;
+using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
+
+public class ProductsControllerTests
+{
+    private readonly Mock<IProductService> _productServiceMock;
+    private readonly Fixture _fixture;
+    private readonly ProductsController _sut;
+
+    public ProductsControllerTests()
+    {
+        _fixture = new Fixture();
+        _fixture.Behaviors
+            .OfType<AutoFixture.Kernel.ThrowingRecursionBehavior>()
+            .ToList()
+            .ForEach(b => _fixture.Behaviors.Remove(b));
+        _fixture.Behaviors.Add(new AutoFixture.Kernel.OmitOnRecursionBehavior());
+
+        _productServiceMock = new Mock<IProductService>();
+        _sut = new ProductsController(_productServiceMock.Object);
+    }
+
+    [Fact]
+    public async Task GetProducts_ValidSearchParams_ReturnsOkWithPagedResult()
+    {
+        // Arrange
+        var searchParams = _fixture.Create<ProductSearchParams>();
+        var pagedResult = _fixture.Create<PagedResult<ProductDto>>();
+        _productServiceMock.Setup(s => s.SearchProductsAsync(searchParams)).ReturnsAsync(pagedResult);
+
+        // Act
+        var result = await _sut.GetProducts(searchParams);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedValue = Assert.IsAssignableFrom<PagedResult<ProductDto>>(okResult.Value);
+        Assert.Equal(pagedResult.TotalCount, returnedValue.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetProduct_ProductExists_ReturnsOkWithProduct()
+    {
+        // Arrange
+        var product = _fixture.Create<ProductDto>();
+        _productServiceMock.Setup(s => s.GetProductByIdAsync(product.Id)).ReturnsAsync(product);
+
+        // Act
+        var result = await _sut.GetProduct(product.Id);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedProduct = Assert.IsAssignableFrom<ProductDto>(okResult.Value);
+        Assert.Equal(product.Id, returnedProduct.Id);
+    }
+
+    [Fact]
+    public async Task GetProduct_ProductDoesNotExist_ReturnsNotFound()
+    {
+        // Arrange
+        _productServiceMock.Setup(s => s.GetProductByIdAsync(It.IsAny<int>())).ReturnsAsync((ProductDto?)null);
+
+        // Act
+        var result = await _sut.GetProduct(999);
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetCategories_ReturnsOkWithCategories()
+    {
+        // Arrange
+        var categories = _fixture.CreateMany<CategoryDto>(3).ToList();
+        _productServiceMock.Setup(s => s.GetAllCategoriesAsync()).ReturnsAsync(categories);
+
+        // Act
+        var result = await _sut.GetCategories();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedCategories = Assert.IsAssignableFrom<IEnumerable<CategoryDto>>(okResult.Value);
+        Assert.Equal(3, returnedCategories.Count());
+    }
+
+    [Fact]
+    public async Task GetCategory_CategoryExists_ReturnsOkWithCategory()
+    {
+        // Arrange
+        var category = _fixture.Create<CategoryDto>();
+        _productServiceMock.Setup(s => s.GetCategoryByIdAsync(category.Id)).ReturnsAsync(category);
+
+        // Act
+        var result = await _sut.GetCategory(category.Id);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedCategory = Assert.IsAssignableFrom<CategoryDto>(okResult.Value);
+        Assert.Equal(category.Id, returnedCategory.Id);
+    }
+
+    [Fact]
+    public async Task GetCategory_CategoryDoesNotExist_ReturnsNotFound()
+    {
+        // Arrange
+        _productServiceMock.Setup(s => s.GetCategoryByIdAsync(It.IsAny<int>())).ReturnsAsync((CategoryDto?)null);
+
+        // Act
+        var result = await _sut.GetCategory(888);
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+}
+```
+
+---
+
+### ✅ Key Features:
+
+- Uses `OmitOnRecursionBehavior` to safely avoid circular references when generating fixtures.
+- Verifies both `200 OK` and `404 NotFound` results.
+- Checks actual return values using `Assert.IsAssignableFrom<T>` for clarity.
+- Fully isolates controller behavior by mocking the service layer.
+
+Would you like me to generate a test file for an actual integration test (e.g., using WebApplicationFactory)?

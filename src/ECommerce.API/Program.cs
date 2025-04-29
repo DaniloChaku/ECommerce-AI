@@ -1,4 +1,5 @@
 using ECommerce.API.Extensions;
+using ECommerce.BLL.ServiceContracts;
 using ECommerce.DAL.Data;
 using ECommerce.DAL.Data.Repositories;
 using ECommerce.DAL.Data.RepositoryContracts;
@@ -14,6 +15,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("ecommercedb");
 
