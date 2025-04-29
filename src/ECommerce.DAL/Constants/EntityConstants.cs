@@ -29,4 +29,9 @@ public static class EntityConstants
     {
         public const int MaxCartItems = 20;
     }
+
+    public static class Order
+    {
+        public const int AddressMaxLength = 500;
+    }
 }

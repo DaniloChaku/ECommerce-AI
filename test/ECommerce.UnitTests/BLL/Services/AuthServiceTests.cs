@@ -23,8 +23,6 @@ public class AuthServiceTests
         var store = new Mock<IUserStore<ApplicationUser>>();
         _userManagerMock = new Mock<UserManager<ApplicationUser>>(
             store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
-        var contextAccessor = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
-        var userPrincipalFactory = new Mock<IUserClaimsPrincipalFactory<ApplicationUser>>();
 
         _jwtServiceMock = new Mock<IJwtService>();
 
