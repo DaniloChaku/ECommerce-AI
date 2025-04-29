@@ -100,7 +100,7 @@ public class ProductRepository : IProductRepository
         return query;
     }
 
-    public async Task<IEnumerable<Category>> GetAllCategoriesAsync()
+    public async Task<List<Category>> GetAllCategoriesAsync()
     {
         return await _dbContext.Categories.ToListAsync();
     }
