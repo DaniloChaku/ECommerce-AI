@@ -1,11 +1,9 @@
-﻿using System.Net;
+﻿namespace ECommerce.BLL.Exceptions;
 
-namespace ECommerce.BLL.Exceptions;
-
-public class UserAlreadyExistsException : BaseApiException
+public class UserAlreadyExistsException : Exception
 {
     public UserAlreadyExistsException(string email)
-        : base($"User with email {email} already exists", HttpStatusCode.InternalServerError)
+        : base($"User with email {email} already exists")
     {
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
-using ECommerce.BLL.Dtos;
+﻿using ECommerce.BLL.Dtos;
 using ECommerce.BLL.Exceptions;
 using ECommerce.BLL.ServiceContracts;
 using ECommerce.DAL.Constants;
@@ -44,8 +42,8 @@ public class AuthService : IAuthService
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
         {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new ValidationException($"Failed to register user: {errors}");
+            var errors = string.Join("\n", result.Errors.Select(e => e.Description));
+            throw new ValidationException(errors);
         }
 
         await _userManager.AddToRoleAsync(user, EntityConstants.User.CustomerRole);

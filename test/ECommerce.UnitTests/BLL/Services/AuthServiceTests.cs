@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using AutoFixture;
+﻿using AutoFixture;
 using ECommerce.BLL.Dtos;
 using ECommerce.BLL.Exceptions;
 using ECommerce.BLL.ServiceContracts;
