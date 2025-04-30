@@ -18,12 +18,13 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Configure Swagger with JWT authentication
 builder.Services.AddSwaggerGen(options =>
 {
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         In = ParameterLocation.Header,
@@ -47,54 +48,19 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<ICartRepository, CartRepository>();
-builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IPaymentService, PaymentService>();
+RegisterApplicationServices(builder.Services);
 
 builder.AddNpgsqlDbContext<ApplicationDbContext>("ecommercedb");
 
-builder.Services.AddIdentityCore<ApplicationUser>(options =>
-{
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequiredLength = EntityConstants.User.PasswordMinLength;
-})
-.AddRoles<IdentityRole>()
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
+ConfigureIdentity(builder.Services);
 
-builder.Services.AddOptions<JwtOptions>()
-    .BindConfiguration(JwtOptions.SectionName)
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidateAudience = true,
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            ValidateLifetime = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
-        };
-    });
-builder.Services.AddAuthorization();
+ConfigureAuthentication(builder);
 
 builder.Services.AddOptions<StripeConfigOptions>()
     .BindConfiguration(StripeConfigOptions.SectionName)
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
 
 var app = builder.Build();
 
@@ -126,3 +92,58 @@ app.MapControllers();
 #pragma warning disable S6966 // Awaitable method should be used
 app.Run();
 #pragma warning restore S6966 // Awaitable method should be used
+
+void RegisterApplicationServices(IServiceCollection services)
+{
+    services.AddScoped<IProductRepository, ProductRepository>();
+    services.AddScoped<ICartRepository, CartRepository>();
+    services.AddScoped<IOrderRepository, OrderRepository>();
+
+    services.AddScoped<IProductService, ProductService>();
+    services.AddScoped<ICartService, CartService>();
+    services.AddScoped<IOrderService, OrderService>();
+    services.AddScoped<IPaymentService, PaymentService>();
+
+    services.AddScoped<IAuthService, AuthService>();
+    services.AddScoped<IJwtService, JwtService>();
+}
+
+void ConfigureIdentity(IServiceCollection services)
+{
+    services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequiredLength = EntityConstants.User.PasswordMinLength;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+}
+
+void ConfigureAuthentication(WebApplicationBuilder builder)
+{
+    builder.Services.AddOptions<JwtOptions>()
+        .BindConfiguration(JwtOptions.SectionName)
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = builder.Configuration["Jwt:Audience"],
+                ValidateLifetime = true,
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
+            };
+        });
+
+    builder.Services.AddAuthorization();
+}
