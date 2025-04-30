@@ -3,6 +3,7 @@ using ECommerce.DAL.Data.RepositoryContracts;
 using ECommerce.DAL.Entities;
 using ECommerce.DAL.Enums;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics.CodeAnalysis;
 
 namespace ECommerce.DAL.Data.Repositories;
 
@@ -66,5 +67,51 @@ public class OrderRepository : IOrderRepository
 
             product.StockQuantity -= item.Quantity;
         }
+    }
+
+    public async Task<Order> UpdateOrderPaymentIntentAsync(int orderId, string paymentIntentId)
+    {
+        var order = await _dbContext.Orders.FindAsync(orderId);
+
+        ValidateOrderExists(orderId, order);
+
+        order.PaymentIntentId = paymentIntentId;
+        await _dbContext.SaveChangesAsync();
+
+        return order;
+    }
+
+    private static void ValidateOrderExists(int orderId, [NotNull] Order? order)
+    {
+        if (order == null)
+        {
+            throw new NotFoundException($"Order with ID {orderId} not found");
+        }
+    }
+
+    public async Task<Order?> GetOrderByPaymentIntentIdAsync(string paymentIntentId)
+    {
+        return await _dbContext.Orders
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(o => o.PaymentIntentId == paymentIntentId);
+    }
+
+    public async Task<Order> UpdateOrderStatusAsync(int orderId, OrderStatus status)
+    {
+        var order = await _dbContext.Orders.FindAsync(orderId);
+
+        ValidateOrderExists(orderId, order);
+
+        order.Status = status;
+
+        if (status == OrderStatus.Processing)
+        {
+            order.PaidAt = DateTime.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        return order;
     }
 }
