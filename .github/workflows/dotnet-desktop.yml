@@ -42,8 +42,8 @@ jobs:
             /o:"danilochaku" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
-            /d:sonar.exclusions="**/Migrations/**/*" \
-            /d:sonar.coverage.exclusions="**/*Program.cs" \
+            /d:sonar.exclusions="**/Migrations/**/*,**/ECommerce.AppHost/**/*" \
+            /d:sonar.coverage.exclusions="**/*Program.cs,**/ECommerce.DAL/**/*" \
             /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
