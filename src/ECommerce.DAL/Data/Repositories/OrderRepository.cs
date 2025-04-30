@@ -35,25 +35,14 @@ public class OrderRepository : IOrderRepository
 
     public async Task<Order> CreateOrderAsync(Order order)
     {
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        _dbContext.Orders.Add(order);
+        await _dbContext.SaveChangesAsync();
 
-        try
-        {
-            _dbContext.Orders.Add(order);
-            await _dbContext.SaveChangesAsync();
+        await UpdateProductsQuantitesAsync(order);
 
-            await UpdateProductsQuantitesAsync(order);
+        await _dbContext.SaveChangesAsync();
 
-            await _dbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            return order;
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+        return order;
     }
 
     private async Task UpdateProductsQuantitesAsync(Order order)
@@ -100,7 +89,6 @@ public class OrderRepository : IOrderRepository
 
         if (status == OrderStatus.Cancelled && order.Status != OrderStatus.Delivered)
         {
-            // If order is cancelled, restore product quantities
             var orderItems = await _dbContext.OrderItems
                 .Where(oi => oi.OrderId == orderId)
                 .ToListAsync();

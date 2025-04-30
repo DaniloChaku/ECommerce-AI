@@ -1,8 +1,8 @@
-﻿using ECommerce.BLL.Dtos;
+﻿using ECommerce.API.Extensions;
+using ECommerce.BLL.Dtos;
 using ECommerce.BLL.ServiceContracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace ECommerce.API.Controllers;
 
@@ -22,8 +22,7 @@ public class CartController : BaseApiController
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CartDto>> GetCart()
     {
-        Console.WriteLine("Hit-------------------");
-        var userId = GetCurrentUserId();
+        var userId = User.GetCurrentUserId();
         var cart = await _cartService.GetCartAsync(userId);
         return Ok(cart);
     }
@@ -36,7 +35,7 @@ public class CartController : BaseApiController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CartDto>> AddItemToCart(AddCartItemDto itemDto)
     {
-        var userId = GetCurrentUserId();
+        var userId = User.GetCurrentUserId();
         var cart = await _cartService.AddItemToCartAsync(userId, itemDto);
         return Ok(cart);
     }
@@ -49,7 +48,7 @@ public class CartController : BaseApiController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CartDto>> UpdateCartItem(int id, UpdateCartItemDto itemDto)
     {
-        var userId = GetCurrentUserId();
+        var userId = User.GetCurrentUserId();
         var cart = await _cartService.UpdateCartItemAsync(userId, id, itemDto);
         return Ok(cart);
     }
@@ -61,7 +60,7 @@ public class CartController : BaseApiController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CartDto>> RemoveCartItem(int id)
     {
-        var userId = GetCurrentUserId();
+        var userId = User.GetCurrentUserId();
         var cart = await _cartService.RemoveCartItemAsync(userId, id);
         return Ok(cart);
     }
@@ -72,14 +71,8 @@ public class CartController : BaseApiController
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CartDto>> ClearCart()
     {
-        var userId = GetCurrentUserId();
+        var userId = User.GetCurrentUserId();
         var cart = await _cartService.ClearCartAsync(userId);
         return Ok(cart);
-    }
-
-    private string GetCurrentUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            throw new UnauthorizedAccessException("User not authenticated");
     }
 }
