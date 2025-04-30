@@ -133,25 +133,6 @@ public class OrderService : IOrderService
         }
     }
 
-    public async Task UpdateOrderStatusAsync(int orderId, OrderStatus status, string userId)
-    {
-        var order = await _orderRepository.GetByIdAsync(orderId);
-
-        ValidateOrderExists(orderId, order);
-        ValidateOrderOwner(userId, order!);
-        ValidateOrderStateTransition(status, order!);
-
-        await _orderRepository.UpdateOrderStatusAsync(orderId, status);
-    }
-
-    private static void ValidateOrderStateTransition(OrderStatus status, Order order)
-    {
-        if (!OrderTransitionHelper.IsValidStatusTransition(order.Status, status))
-        {
-            throw new ValidationException($"Invalid order status transition from {order.Status} to {status}");
-        }
-    }
-
     private static OrderDto MapOrderToDto(Order order)
     {
         return new OrderDto

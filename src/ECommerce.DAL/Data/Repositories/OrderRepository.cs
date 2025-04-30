@@ -67,40 +67,4 @@ public class OrderRepository : IOrderRepository
             product.StockQuantity -= item.Quantity;
         }
     }
-
-    public async Task<bool> UpdateOrderStatusAsync(int orderId, OrderStatus status)
-    {
-        var order = await _dbContext.Orders.FindAsync(orderId);
-
-        if (order == null)
-        {
-            return false;
-        }
-
-        await UpdateOrderStatusAsync(orderId, status, order);
-
-        await _dbContext.SaveChangesAsync();
-        return true;
-    }
-
-    private async Task UpdateOrderStatusAsync(int orderId, OrderStatus status, Order order)
-    {
-        order.Status = status;
-
-        if (status == OrderStatus.Cancelled && order.Status != OrderStatus.Delivered)
-        {
-            var orderItems = await _dbContext.OrderItems
-                .Where(oi => oi.OrderId == orderId)
-                .ToListAsync();
-
-            foreach (var item in orderItems)
-            {
-                var product = await _dbContext.Products.FindAsync(item.ProductId);
-                if (product != null)
-                {
-                    product.StockQuantity += item.Quantity;
-                }
-            }
-        }
-    }
 }

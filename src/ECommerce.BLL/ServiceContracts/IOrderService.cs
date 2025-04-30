@@ -8,5 +8,4 @@ public interface IOrderService
     Task<OrderDto> GetOrderByIdAsync(int id, string userId);
     Task<List<OrderSummaryDto>> GetUserOrdersAsync(string userId);
     Task<OrderDto> CreateOrderFromCartAsync(string userId, CreateOrderDto createOrderDto);
-    Task UpdateOrderStatusAsync(int orderId, OrderStatus status, string userId);
 }

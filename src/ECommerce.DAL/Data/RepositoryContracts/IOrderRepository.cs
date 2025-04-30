@@ -8,5 +8,4 @@ public interface IOrderRepository
     Task<Order?> GetByIdAsync(int id);
     Task<List<Order>> GetOrdersByUserIdAsync(string userId);
     Task<Order> CreateOrderAsync(Order order);
-    Task<bool> UpdateOrderStatusAsync(int orderId, OrderStatus status);
 }
