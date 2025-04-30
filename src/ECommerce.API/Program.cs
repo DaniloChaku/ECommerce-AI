@@ -90,6 +90,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+builder.Services.AddOptions<StripeConfigOptions>()
+    .BindConfiguration(StripeConfigOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 var app = builder.Build();
 
 app.UseExceptionHandling();

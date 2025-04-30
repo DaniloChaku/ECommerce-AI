@@ -2384,3 +2384,394 @@ A: ✅ Unit tests for all controller methods are now implemented, covering:
 - Standard return paths for `GetUserOrders`, `CreateOrder`, and `UpdateOrderStatus`
 
 Let me know if you'd like tests for edge cases or input validation scenarios too.
+
+
+Q: create Stripe payment functionality. I already have evrything else implemented. Order: public class Order
+{
+    public int Id { get; set; }
+
+    [Required]
+    [MaxLength(EntityConstants.User.NameMaxLength)]
+    public string UserId { get; set; } = string.Empty;
+
+    public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+
+    public OrderStatus Status { get; set; } = OrderStatus.Pending;
+
+    public decimal TotalAmount { get; set; }
+
+    public ICollection<OrderItem> Items { get; set; } = [];
+
+    [MaxLength(EntityConstants.Order.AddressMaxLength)]
+    public string? ShippingAddress { get; set; }
+
+    public string? PaymentIntentId { get; set; }
+
+    public DateTime? PaidAt { get; set; }
+}
+
+public enum OrderStatus
+{
+    Pending,
+    Processing,
+    Shipped,
+    Delivered,
+    Cancelled
+}
+
+public class OrderRepository : IOrderRepository
+{
+    private readonly ApplicationDbContext _dbContext;
+
+    public OrderRepository(ApplicationDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public async Task<Order?> GetByIdAsync(int id)
+    {
+        return await _dbContext.Orders
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(o => o.Id == id);
+    }
+
+    public async Task<List<Order>> GetOrdersByUserIdAsync(string userId)
+    {
+        return await _dbContext.Orders
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Product)
+            .Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.OrderDate)
+            .ToListAsync();
+    }
+
+    public async Task<Order> CreateOrderAsync(Order order)
+    {
+        _dbContext.Orders.Add(order);
+        await _dbContext.SaveChangesAsync();
+
+        await UpdateProductsQuantitesAsync(order);
+
+        await _dbContext.SaveChangesAsync();
+
+        return order;
+    }
+
+    private async Task UpdateProductsQuantitesAsync(Order order)
+    {
+        foreach (var item in order.Items)
+        {
+            var product = await _dbContext.Products.FindAsync(item.ProductId);
+
+            if (product == null)
+            {
+                throw new ProductNotFoundException(item.ProductId);
+            }
+
+            if (product.StockQuantity < item.Quantity)
+            {
+                throw new InsufficientStockException(
+                    product.Id,
+                    product.StockQuantity,
+                    item.Quantity);
+            }
+
+            product.StockQuantity -= item.Quantity;
+        }
+    }
+}
+public class OrderService : IOrderService
+{
+    private readonly IOrderRepository _orderRepository;
+    private readonly ICartRepository _cartRepository;
+    private readonly IProductRepository _productRepository;
+
+    public OrderService(
+        IOrderRepository orderRepository,
+        ICartRepository cartRepository,
+        IProductRepository productRepository)
+    {
+        _orderRepository = orderRepository;
+        _cartRepository = cartRepository;
+        _productRepository = productRepository;
+    }
+
+    public async Task<OrderDto> GetOrderByIdAsync(int id, string userId)
+    {
+        var order = await _orderRepository.GetByIdAsync(id);
+
+        ValidateOrderExists(id, order);
+        ValidateOrderOwner(userId, order!);
+
+        return MapOrderToDto(order!);
+    }
+
+    private static void ValidateOrderOwner(string userId, Order order)
+    {
+        if (order.UserId != userId)
+        {
+            throw new ForbiddenException("Unauthorized access to order");
+        }
+    }
+
+    private static void ValidateOrderExists(int id, Order? order)
+    {
+        if (order == null)
+        {
+            throw new NotFoundException($"Order with ID {id} not found");
+        }
+    }
+
+    public async Task<List<OrderSummaryDto>> GetUserOrdersAsync(string userId)
+    {
+        var orders = await _orderRepository.GetOrdersByUserIdAsync(userId);
+        return orders.ConvertAll(MapOrderToSummaryDto);
+    }
+
+    public async Task<OrderDto> CreateOrderFromCartAsync(string userId, CreateOrderDto createOrderDto)
+    {
+        var cart = await _cartRepository.GetCartByUserIdAsync(userId);
+
+        ValidateCartNotEmpty(cart);
+
+        var order = new Order
+        {
+            UserId = userId,
+            OrderDate = DateTime.UtcNow,
+            Status = OrderStatus.Pending,
+            ShippingAddress = createOrderDto.ShippingAddress,
+            Items = []
+        };
+
+        await SetOrderPriceAsync(cart!, order);
+
+        var createdOrder = await _orderRepository.CreateOrderAsync(order);
+
+        await _cartRepository.ClearCartAsync(cart!);
+
+        return MapOrderToDto(createdOrder);
+    }
+
+    private async Task SetOrderPriceAsync(Cart cart, Order order)
+    {
+        decimal totalAmount = 0;
+
+        foreach (var cartItem in cart.Items)
+        {
+            var product = await _productRepository.GetByIdAsync(cartItem.ProductId);
+
+            ValidateOrderExists(cartItem, product);
+            ValidateProductStock(cartItem, product!);
+
+            var orderItem = new OrderItem
+            {
+                ProductId = product!.Id,
+                Product = product,
+                Quantity = cartItem.Quantity,
+                UnitPrice = product.Price
+            };
+
+            order.Items.Add(orderItem);
+            totalAmount += (orderItem.UnitPrice * orderItem.Quantity);
+        }
+
+        order.TotalAmount = totalAmount;
+
+        static void ValidateOrderExists(CartItem cartItem, Product? product)
+        {
+            if (product == null)
+            {
+                throw new ProductNotFoundException(cartItem.ProductId);
+            }
+        }
+
+        static void ValidateProductStock(CartItem cartItem, Product product)
+        {
+            if (product.StockQuantity < cartItem.Quantity)
+            {
+                throw new InsufficientStockException(
+                    product.Id,
+                    product.StockQuantity,
+                    cartItem.Quantity);
+            }
+        }
+    }
+
+    private static void ValidateCartNotEmpty(Cart? cart)
+    {
+        if (cart == null || !cart.Items.Any())
+        {
+            throw new ValidationException("Cannot create order from empty cart");
+        }
+    }
+
+    private static OrderDto MapOrderToDto(Order order)
+    {
+        return new OrderDto
+        {
+            Id = order.Id,
+            UserId = order.UserId,
+            OrderDate = order.OrderDate,
+            Status = order.Status.ToString(),
+            TotalAmount = order.TotalAmount,
+            ShippingAddress = order.ShippingAddress,
+            PaidAt = order.PaidAt,
+            Items = order.Items.Select(item => new OrderItemDto
+            {
+                Id = item.Id,
+                ProductId = item.ProductId,
+                ProductName = item.Product?.Name ?? string.Empty,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice
+            }).ToList()
+        };
+    }
+
+    private static OrderSummaryDto MapOrderToSummaryDto(Order order)
+    {
+        return new OrderSummaryDto
+        {
+            Id = order.Id,
+            OrderDate = order.OrderDate,
+            Status = order.Status.ToString(),
+            TotalAmount = order.TotalAmount,
+            ItemCount = order.Items.Count
+        };
+    }
+}
+
+we will need to add a method to set order payment intent id.
+also, you only need to write the api part.  this is an example from the official documentation:         
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
+            app.UseRouting();
+            app.UseStaticFiles();
+            app.UseEndpoints(endpoints => endpoints.MapControllers());
+        }
+    }
+
+    [Route("create-checkout-session")]
+    [ApiController]
+    public class CheckoutApiController : Controller
+    {
+        [HttpPost]
+        public ActionResult Create()
+        {
+            var domain = "http://localhost:4242";
+            var options = new SessionCreateOptions
+            {
+                UiMode = "embedded",
+                LineItems = new List<SessionLineItemOptions>
+                {
+                  new SessionLineItemOptions
+                  {
+                    // Provide the exact Price ID (for example, price_1234) of the product you want to sell
+                    Price = "{{PRICE_ID}}",
+                    Quantity = 1,
+                  },
+                },
+                Mode = "payment",
+                ReturnUrl = domain + "/return.html?session_id={CHECKOUT_SESSION_ID}",
+            };
+            var service = new SessionService();
+            Session session = service.Create(options);
+
+            return Json(new {clientSecret = session.ClientSecret});
+        }
+    }
+
+    [Route("session-status")]
+    [ApiController]
+    public class SessionStatusController : Controller
+    {
+        [HttpGet]
+        public ActionResult SessionStatus([FromQuery] string session_id)
+        {
+            var sessionService = new SessionService();
+            Session session = sessionService.Get(session_id);
+
+            return Json(new {status = session.Status,  customer_email = session.CustomerDetails.Email});
+        }
+    }
+client urls will the supplied from the configurations with options pattern
+
+A: I'll create the Stripe payment functionality for your e-commerce application, focusing on the API parts and integrating with your existing Order implementation.
+
+## Stripe Payment Integration for ASP.NET Core E-Commerce Application
+
+I've created a complete integration with Stripe Payment for your e-commerce application, building on top of your existing Order functionality. Here's an overview of what's been implemented:
+
+### 1. Server-Side Implementation
+
+#### Payment Service and Repository
+- Created `IPaymentService` interface and `PaymentService` implementation
+- Added necessary methods to the `OrderRepository` to update payment information and status
+- Implemented proper validation and error handling throughout the payment flow
+
+#### Key Payment Flows
+- **Create Payment Intent**: Generates a payment intent with Stripe and updates the order
+- **Confirm Payment**: Verifies payment completion and updates order to Processing status
+- **Payment Status Check**: Retrieves current payment status for an order
+- **Webhook Handler**: Processes asynchronous payment events from Stripe
+
+#### Configuration
+- Added `StripeConfigOptions` for centralized configuration
+- Integrated with ASP.NET Core dependency injection system
+- Secured API keys using the options pattern
+
+### 2. API Controller
+
+The `PaymentsController` provides four key endpoints:
+
+1. **POST /api/payments/create-intent**
+   - Creates a payment intent for an order
+   - Returns client secret needed by Stripe.js
+
+2. **POST /api/payments/confirm**
+   - Confirms a successful payment
+   - Updates order status to Processing
+
+3. **GET /api/payments/status/{paymentIntentId}**
+   - Checks current payment status
+   - Returns payment and order details
+
+4. **POST /api/payments/webhook**
+   - Handles Stripe webhooks for asynchronous events
+   - Securely validates the webhook signature
+
+### 3. Client-Side Integration Example
+
+I've included sample client-side code demonstrating how to:
+- Initialize Stripe Elements with the client secret
+- Create a payment form with proper error handling
+- Process payment completion
+- Verify payment status after redirect
+
+### Key Security Features
+
+- **Authentication**: All endpoints require authentication (except webhook)
+- **Authorization**: Orders are validated to ensure they belong to the requesting user
+- **Webhook Signature Verification**: Prevents webhook spoofing
+- **API Key Protection**: Keys stored in configuration, not in code
+
+### Using the Implementation
+
+1. **Configuration**:
+   - Add Stripe API keys to `appsettings.json`
+   - Configure webhook endpoint in Stripe dashboard
+
+2. **Payment Flow**:
+   1. User creates an order (existing functionality)
+   2. Frontend calls `/api/payments/create-intent` with the order ID
+   3. Stripe Elements collects payment information
+   4. After payment, user is redirected to completion page
+   5. Frontend verifies payment status with `/api/payments/status/{id}`
+
+This implementation uses Stripe's latest recommended practices for payment processing, including:
+- Direct PaymentIntent API for modern SCA-compliant payments
+- Webhook support for asynchronous payment events
+- Secure handling of payment confirmations
+
+The implementation is designed to be clean, maintainable, and follows the architecture pattern of your existing code.
