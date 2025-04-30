@@ -80,6 +80,11 @@ public class PaymentService : IPaymentService
             throw new ValidationException($"Order with ID {orderId} is not in pending status");
         }
 
+        if (orderDto.UserId != userId)
+        {
+            throw new ForbiddenException("Unauthorized access to order");
+        }
+
         return orderDto;
     }
 
@@ -92,7 +97,7 @@ public class PaymentService : IPaymentService
         return await paymentIntentService.CreateAsync(paymentIntentOptions);
     }
 
-    private long ConvertToSmallestCurrencyUnit(decimal amount)
+    private static long ConvertToSmallestCurrencyUnit(decimal amount)
     {
         return Convert.ToInt64(amount * 100);
     }
@@ -132,7 +137,7 @@ public class PaymentService : IPaymentService
         };
     }
 
-    private async Task<PaymentIntent> GetStripePaymentIntentAsync(string paymentIntentId)
+    private static async Task<PaymentIntent> GetStripePaymentIntentAsync(string paymentIntentId)
     {
         var paymentIntentService = new PaymentIntentService();
         return await paymentIntentService.GetAsync(paymentIntentId);
@@ -155,7 +160,7 @@ public class PaymentService : IPaymentService
         return order;
     }
 
-    private bool IsPaymentSucceeded(PaymentIntent paymentIntent)
+    private static bool IsPaymentSucceeded(PaymentIntent paymentIntent)
     {
         return paymentIntent.Status == "succeeded";
     }
