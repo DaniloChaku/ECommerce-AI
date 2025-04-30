@@ -2,6 +2,11 @@
 
 ## Functionality
 
+- **Product Browsing**: Users can view a list of available products.
+- **Shopping Cart Interaction**: Users can add products to their cart, update quantities, and remove items before proceeding to checkout.
+- **Order Creation**: Users can place orders based on the contents of their shopping cart.
+- **Payments**: Secure payment processing with Stripe.
+
 ## Setting Up 
 
 ### Prerequisites
