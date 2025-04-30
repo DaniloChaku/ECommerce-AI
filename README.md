@@ -38,8 +38,8 @@ dotnet run --project src/ECommerce.AppHost
 
 ### 4. Access The Application
 
-Once everything is running, you can access the application at the configured port (default is http://localhost:5001).  
-API documentation (Swagger UI) is typically available at http://localhost:8080/swagger
+Once everything is running, you can access the application at the configured port (default is https://localhost:5001).  
+API documentation (Swagger UI) is typically available at https://localhost:8080/swagger
 
 ## Quality Analysis
 Link: https://sonarcloud.io/summary/overall?id=danilochaku_ecommerce&branch=main.
