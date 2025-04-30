@@ -23,7 +23,7 @@ public class OrderRepository : IOrderRepository
             .FirstOrDefaultAsync(o => o.Id == id);
     }
 
-    public async Task<IEnumerable<Order>> GetOrdersByUserIdAsync(string userId)
+    public async Task<List<Order>> GetOrdersByUserIdAsync(string userId)
     {
         return await _dbContext.Orders
             .Include(o => o.Items)

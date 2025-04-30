@@ -50,10 +50,10 @@ public class OrderService : IOrderService
         }
     }
 
-    public async Task<IEnumerable<OrderSummaryDto>> GetUserOrdersAsync(string userId)
+    public async Task<List<OrderSummaryDto>> GetUserOrdersAsync(string userId)
     {
         var orders = await _orderRepository.GetOrdersByUserIdAsync(userId);
-        return orders.Select(MapOrderToSummaryDto);
+        return orders.ConvertAll(MapOrderToSummaryDto);
     }
 
     public async Task<OrderDto> CreateOrderFromCartAsync(string userId, CreateOrderDto createOrderDto)
@@ -133,7 +133,7 @@ public class OrderService : IOrderService
         }
     }
 
-    public async Task<bool> UpdateOrderStatusAsync(int orderId, OrderStatus status, string userId)
+    public async Task UpdateOrderStatusAsync(int orderId, OrderStatus status, string userId)
     {
         var order = await _orderRepository.GetByIdAsync(orderId);
 
@@ -141,7 +141,7 @@ public class OrderService : IOrderService
         ValidateOrderOwner(userId, order!);
         ValidateOrderStateTransition(status, order!);
 
-        return await _orderRepository.UpdateOrderStatusAsync(orderId, status);
+        await _orderRepository.UpdateOrderStatusAsync(orderId, status);
     }
 
     private static void ValidateOrderStateTransition(OrderStatus status, Order order)

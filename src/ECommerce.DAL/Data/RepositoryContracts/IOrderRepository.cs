@@ -6,7 +6,7 @@ namespace ECommerce.DAL.Data.RepositoryContracts;
 public interface IOrderRepository
 {
     Task<Order?> GetByIdAsync(int id);
-    Task<IEnumerable<Order>> GetOrdersByUserIdAsync(string userId);
+    Task<List<Order>> GetOrdersByUserIdAsync(string userId);
     Task<Order> CreateOrderAsync(Order order);
     Task<bool> UpdateOrderStatusAsync(int orderId, OrderStatus status);
 }

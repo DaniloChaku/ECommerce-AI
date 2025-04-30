@@ -139,17 +139,18 @@ public class OrderServiceTests
     }
 
     [Fact]
-    public async Task UpdateOrderStatusAsync_ValidStatusChange_ReturnsTrue()
+    public async Task UpdateOrderStatusAsync_ValidStatusChange_Suceeds()
     {
         var order = _fixture.Build<Order>().With(o => o.UserId, "user1")
             .With(o => o.Status, OrderStatus.Pending).Create();
+        var newValidStatus = OrderStatus.Processing;
 
         _orderRepoMock.Setup(r => r.GetByIdAsync(order.Id)).ReturnsAsync(order);
-        _orderRepoMock.Setup(r => r.UpdateOrderStatusAsync(order.Id, OrderStatus.Processing)).ReturnsAsync(true);
+        _orderRepoMock.Setup(r => r.UpdateOrderStatusAsync(order.Id, newValidStatus)).ReturnsAsync(true);
 
-        var result = await _sut.UpdateOrderStatusAsync(order.Id, OrderStatus.Processing, "user1");
+        await _sut.UpdateOrderStatusAsync(order.Id, newValidStatus, "user1");
 
-        Assert.True(result);
+        _orderRepoMock.Verify(r => r.UpdateOrderStatusAsync(order.Id, newValidStatus), Times.Once);
     }
 }
 
