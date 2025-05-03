@@ -43,6 +43,7 @@ API documentation (Swagger UI) is typically available at https://localhost:8080/
 
 ## Quality Analysis
 Link: https://sonarcloud.io/summary/overall?id=danilochaku_ecommerce&branch=main.
+Note: As I am required to have over 80% unit test coverage, I have added classes that require integration testing to Sonar coverage exclusions.
 
 ## AI Task Completion Feedback
 - Was it easy to complete the task using **AI**?
@@ -63,4 +64,7 @@ Link: https://sonarcloud.io/summary/overall?id=danilochaku_ecommerce&branch=main
   
 - Which specific prompts you learned as a good practice to complete the task?
   
-  Write unit tests with [framework and libraries]. Use [naming conventions] naming conventions.
+  - Task + [technologies] + [examples].  
+  - Write unit tests with [framework and libraries]. Use [naming conventions] naming conventions.
+
+Note: I'm aware that writing polite words wastes tokens and increases the cost of prompts, which is why I won't do so when using the corporate AI. I used generally available AIs with my personal accounts for this task.
